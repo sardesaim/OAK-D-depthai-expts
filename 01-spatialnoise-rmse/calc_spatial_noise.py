@@ -16,8 +16,7 @@ for frame in f:
     frames.append(np.load('/home/sardesaim/depthai-tutorials-practice/4-spatialnoise/Frames/'+frame))
 
 xyz=[]
-# print(np.array(frames).shape)
-# print(frames[0].shape[0]-1, frames[0][1].shape)
+
 for i in range(frames[0].shape[0]):
     for j in range(frames[0].shape[1]):
         xyz.append((i,j,frames[0][i][j]))
@@ -27,37 +26,20 @@ xyz=np.array(xyz)
 df=pd.DataFrame(xyz, columns=['x','y','z'])
 print(df.tail())
 dropz=df.index[df['z']==0].tolist()
-dropx=df.index[df['z']==None].tolist()
-dropy=df.index[df['z']==None].tolist()
-c=dropx+dropy+dropz
+dropi=df.index[df['z']==65535].tolist()
+c=dropz+dropi
 df=df.drop(df.index[c])
-z_scr = np.abs(stats.zscore(df))
-
-threshold = 1.2
-print(z_scr)
-print(np.where(z_scr>threshold))
-
 print(df.shape)
-df_o = df[(z_scr < 0.95).all(axis=1)]
-# df_o = df_o.quantile(q=0.70, axis=0, numeric_only=True, interpolation='nearest')
+df_o = df[df['z'] < df['z'].quantile(.90)]
 print(df_o.shape)
-# sns.distplot(xyz[:,2], kde=False, rug=True)
-# plt.show()
-xyz=df_o.to_numpy()
-xs=xyz[:,0]
-ys=xyz[:,1]
-zs=xyz[:,2]
 
+xyz=df_o.to_numpy()
 plt.figure()
 ax = plt.subplot(111, projection='3d')
-ax.scatter(xs, ys, zs, color='b')
-tmp_A = []
-tmp_b = []
-for i in range(len(xs)):
-    tmp_A.append([xs[i], ys[i], 1])
-    tmp_b.append(zs[i])
-b = np.matrix(tmp_b).T
-A = np.matrix(tmp_A)
+ax.scatter(xyz[:,0], xyz[:,1], xyz[:,2], color='b')
+
+A = np.matrix(np.c_[xyz[:,0], xyz[:,1], np.ones(xyz.shape[0])])
+b = np.matrix(xyz[:,2]).T
 fit = (A.T * A).I * A.T * b
 errors = b - A * fit
 residual = np.linalg.norm(errors)
@@ -70,6 +52,7 @@ print("residual:")
 print(residual)
 print("rmse")
 print(np.sqrt((np.multiply(np.array(errors), np.array(errors))).mean()))
+
 # plot plane
 xlim = ax.get_xlim()
 ylim = ax.get_ylim()
@@ -80,9 +63,7 @@ for r in range(X.shape[0]):
     for c in range(X.shape[1]):
         Z[r,c] = fit[0] * X[r,c] + fit[1] * Y[r,c] + fit[2]
 ax.plot_wireframe(X,Y,Z, color='k')
-
 ax.set_xlabel('x')
 ax.set_ylabel('y')
 ax.set_zlabel('z')
-
 plt.show()
