@@ -29,11 +29,22 @@ dest.mkdir(parents=True, exist_ok=True)
 
 config={
     "streams": ["previewout", "depth_raw"],
-    'depth':{
+    'depth':
+    {
         'calibration_file': consts.resource_paths.calib_fpath,
+        'left_mesh_file': consts.resource_paths.left_mesh_fpath,
+        'right_mesh_file': consts.resource_paths.right_mesh_fpath,
         'padding_factor': 0.3,
         'depth_limit_m': 10.0, # In meters, for filtering purpose during x,y,z calc
         'confidence_threshold' : 0.5, #Depth is calculated for bounding boxes with confidence higher than this number
+        'median_kernel_size': 7,
+        'lr_check': False,
+        'warp_rectify':
+        {
+            'use_mesh' : False, # if False, will use homography
+            'mirror_frame': True, # if False, the disparity will be mirrored instead
+            'edge_fill_color': 0, # gray 0..255, or -1 to replicate pixel values
+        },
     },
     "ai":{
         "blob_file": consts.resource_paths.blob_fpath,
@@ -76,6 +87,19 @@ def store_frames(depth_raw, depth_img):
         proc.start()
     procs += new_procs
 
+def on_trackbar_change(value):
+    device.send_disparity_confidence_threshold(value)
+    return
+
+cv2.namedWindow('depth_raw')
+trackbar_name = 'Disparity confidence'
+conf_thr_slider_min = 0
+conf_thr_slider_max = 255
+cv2.createTrackbar(trackbar_name, 'depth_raw', conf_thr_slider_min, conf_thr_slider_max, on_trackbar_change)
+cv2.setTrackbarPos(trackbar_name, 'depth_raw', 255)
+
+
+# device.send_DisparityConfidenceThreshold(255)
 saved_frame_ct=0
 while True:
     data_packets = p.get_available_data_packets(True)
@@ -105,63 +129,63 @@ while True:
 del p
 
 # depthai.deinit_device()
-# frames=[]
-# for dirName, subdirList, fileList in os.walk(dest):
-#     print('Found directory: %s' % dirName)
-#     for fname in fileList:
-#         if '.npy' in fname:
-#             print('\t%s' % fname)
-#             frames.append(np.load(dirName+'/'+fname))
+frames=[]
+for dirName, subdirList, fileList in os.walk(dest):
+    print('Found directory: %s' % dirName)
+    for fname in fileList:
+        if '.npy' in fname:
+            print('\t%s' % fname)
+            frames.append(np.load(dirName+'/'+fname))
 
-# xyz=[]
+xyz=[]
 
-# for i in range(frames[0].shape[0]):
-#     for j in range(frames[0].shape[1]):
-#         xyz.append((i,j,frames[0][i][j]))
+for i in range(frames[-1].shape[0]):
+    for j in range(frames[-1].shape[1]):
+        xyz.append((i,j,frames[-1][i][j]))
 
-# print(np.array(xyz)[:,:2].shape)
-# xyz=np.array(xyz)
-# df=pd.DataFrame(xyz, columns=['x','y','z'])
-# print(df.tail())
-# dropz=df.index[df['z']==0].tolist()
-# dropi=df.index[df['z']==65535].tolist()
-# c=dropz+dropi
-# df=df.drop(df.index[c])
-# print(df.shape)
-# df_o = df[df['z'] < df['z'].quantile(.90)]
-# print(df_o.shape)
+print(np.array(xyz)[:,:2].shape)
+xyz=np.array(xyz)
+df=pd.DataFrame(xyz, columns=['x','y','z'])
+print(df.tail())
+dropz=df.index[df['z']==0].tolist()
+dropi=df.index[df['z']==65535].tolist()
+c=dropz+dropi
+df=df.drop(df.index[c])
+print(df.shape)
+df_o = df[df['z'] < df['z'].quantile(0.90)]
+print(df_o.shape)
 
-# xyz=df_o.to_numpy()
-# plt.figure()
-# ax = plt.subplot(111, projection='3d')
-# ax.scatter(xyz[:,0], xyz[:,1], xyz[:,2], color='b')
+xyz=df_o.to_numpy()
+plt.figure()
+ax = plt.subplot(111, projection='3d')
+ax.scatter(xyz[:,0], xyz[:,1], xyz[:,2], color='b')
 
-# A = np.matrix(np.c_[xyz[:,0], xyz[:,1], np.ones(xyz.shape[0])])
-# b = np.matrix(xyz[:,2]).T
-# fit = (A.T * A).I * A.T * b
-# errors = b - A * fit
-# residual = np.linalg.norm(errors)
+A = np.matrix(np.c_[xyz[:,0], xyz[:,1], np.ones(xyz.shape[0])])
+b = np.matrix(xyz[:,2]).T
+fit = (A.T * A).I * A.T * b
+errors = b - A * fit
+residual = np.linalg.norm(errors)
 
-# print("solution:")
-# print("%f x + %f y + %f = z" % (fit[0], fit[1], fit[2]))
-# print("errors:")
-# print(errors)
-# print("residual:")
-# print(residual)
-# print("rmse")
-# print(np.sqrt((np.multiply(np.array(errors), np.array(errors))).mean()))
+print("solution:")
+print("%f x + %f y + %f = z" % (fit[0], fit[1], fit[2]))
+print("errors:")
+print(errors)
+print("residual:")
+print(residual)
+print("rmse")
+print(np.sqrt((np.multiply(np.array(errors), np.array(errors))).mean()))
 
-# # plot plane
-# xlim = ax.get_xlim()
-# ylim = ax.get_ylim()
-# X,Y = np.meshgrid(np.arange(xlim[0], xlim[1]),
-#                   np.arange(ylim[0], ylim[1]))
-# Z = np.zeros(X.shape)
-# for r in range(X.shape[0]):
-#     for c in range(X.shape[1]):
-#         Z[r,c] = fit[0] * X[r,c] + fit[1] * Y[r,c] + fit[2]
-# ax.plot_wireframe(X,Y,Z, color='k')
-# ax.set_xlabel('x')
-# ax.set_ylabel('y')
-# ax.set_zlabel('z')
-# plt.show()
+# plot plane
+xlim = ax.get_xlim()
+ylim = ax.get_ylim()
+X,Y = np.meshgrid(np.arange(xlim[0], xlim[1]),
+                  np.arange(ylim[0], ylim[1]))
+Z = np.zeros(X.shape)
+for r in range(X.shape[0]):
+    for c in range(X.shape[1]):
+        Z[r,c] = fit[0] * X[r,c] + fit[1] * Y[r,c] + fit[2]
+ax.plot_wireframe(X,Y,Z, color='k')
+ax.set_xlabel('x')
+ax.set_ylabel('y')
+ax.set_zlabel('z')
+plt.show()
