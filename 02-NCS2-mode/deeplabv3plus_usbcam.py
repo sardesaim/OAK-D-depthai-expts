@@ -41,8 +41,10 @@ if __name__ == '__main__':
     model_bin = os.path.splitext(model_xml)[0] + ".bin"
 
     ie = IECore()
+    # print(ie.get_config())
     #ie.add_extension(extension_path="/opt/intel/openvino/inference_engine/lib/intel64/libinference_engine.so", device_name="MYRIAD")
     net = ie.read_network(model_xml, model_bin)
+    print(net.input_info)
     input_info = net.input_info
     input_blob = next(iter(input_info))
     exec_net = ie.load_network(network=net, device_name=args.device)
@@ -62,7 +64,7 @@ if __name__ == '__main__':
         # ret, color_image = cam.read()
         # if not ret:
         #     continue
-        color_image = cv2.imread('/home/sardesaim/OAK-D-Weed-Cam/Model/Images/2017_02_foulum_02_slaet_014_klip_rect.jpg')
+        color_image = cv2.imread('/home/sardesaim/OAK-D-Weed-Cam/Model/Images/2017_02_foulum_02_slaet_059_klip_rect.jpg')
         color_image = cv2.resize(color_image, (camera_width, camera_height))
         # Normalization
         prepimg_deep = cv2.resize(color_image, (256, 256))
@@ -70,19 +72,22 @@ if __name__ == '__main__':
         prepimg_deep = np.expand_dims(prepimg_deep, axis=0)
         prepimg_deep = prepimg_deep.astype(np.float32)
         prepimg_deep = np.transpose(prepimg_deep, [0, 3, 1, 2])
-        prepimg_deep -= 127.5
-        prepimg_deep /= 127.5
+        # prepimg_deep -= 127.5
+        # prepimg_deep /= 127.5
 
         # Run model - DeeplabV3-plus
         deeplabv3_predictions = exec_net.infer(inputs={input_blob: prepimg_deep})
 
         # Get results
         print(deeplabv3_predictions.keys())
-        predictions = deeplabv3_predictions['ArgMax/Squeeze']
+        predictions = deeplabv3_predictions['Cast_2']
+        print(np.array(predictions).shape)
         # predictions = deeplabv3_predictions['Output/Transpose']
-        print(len(predictions[0][0]))
-        # d=Counter(predictions)
-        # print(d)
+        # import seaborn as sns
+        # import matplotlib.pyplot as plt
+        # sns.distplot(predictions[0].flatten())
+        # plt.show()
+
         # Segmentation
         # outputimg = np.uint8(predictions[0][0])
         outputimg = np.uint8(predictions[0])
