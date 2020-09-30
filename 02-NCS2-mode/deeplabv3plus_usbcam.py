@@ -64,7 +64,7 @@ if __name__ == '__main__':
         # ret, color_image = cam.read()
         # if not ret:
         #     continue
-        color_image = cv2.imread('/home/sardesaim/OAK-D-Weed-Cam/Model/Images/2017_02_foulum_02_slaet_059_klip_rect.jpg')
+        color_image = cv2.imread('1color.png')
         color_image = cv2.resize(color_image, (camera_width, camera_height))
         # Normalization
         prepimg_deep = cv2.resize(color_image, (256, 256))

@@ -1,17 +1,18 @@
 import numpy as np  # numpy - manipulate the packet data returned by depthai
 import cv2  # opencv - display the video stream
 import depthai  # access the camera and its data packets
-print('Using depthai module from: ', depthai.__file__)
+print('Using depthai module from: ', depthai.__file__, depthai.__version__)
+
 import consts.resource_paths  # load paths to depthai resources
 from time import time
 
 device = depthai.Device('', False)
-
+device.send_disparity_confidence_threshold(255)
 #if not depthai.init_device(consts.resource_paths.device_cmd_fpath):
 #   raise RuntimeError("Error initializing device. Try to reset it.")
 # Create the pipeline using the 'previewout' stream, establishing the first connection to the device.
 pipeline = device.create_pipeline(config={
-    'streams': ['previewout', 'metaout'],
+    'streams': ['previewout', 'metaout', 'depth'],
     'depth':
     {
         'calibration_file': consts.resource_paths.calib_fpath,
@@ -30,10 +31,10 @@ pipeline = device.create_pipeline(config={
         },
     },
     'ai': {
-        "blob_file": "/home/sardesaim/Downloads/3class_deeplabv3_256/deeplab_v3_plus_mnv3_decoder_256_3_class.blob",
-        #"blob_file": "/home/sardesaim/OAK-D-depthai-expts/03-depthai-3class/3class_256.blob",
-        "blob_file_config": "/home/sardesaim/Downloads/3class_deeplabv3_256/deeplab_v3_plus_mnv3_decoder_256_3_class.json",
-        #"blob_file_config": "/home/sardesaim/OAK-D-depthai-expts/03-depthai-3class/3class_256.json",
+#        "blob_file": "/home/pi/Downloads/3class_deeplabv3_256/deeplab_v3_plus_mnv3_decoder_256_3_class.blob",
+        "blob_file": "/home/pi/OAK-D-depthai-expts/03-depthai-3class/3class_256.blob",
+        #"blob_file_config": "/home/pi/Downloads/3class_deeplabv3_256/deeplab_v3_plus_mnv3_decoder_256_3_class.json",
+        "blob_file_config": "/home/pi/OAK-D-depthai-expts/03-depthai-3class/3class_256.json",
         'shaves' : 14,
         'cmx_slices' : 14,
         'NN_engines' : 2,
@@ -111,6 +112,23 @@ while True:
                 cv2.imshow("Mixed", mixed)
                 # cv2.imshow("Output", output_colors)
             cv2.imshow('previewout', frame)
+        elif packet.stream_name.startswith('depth') or packet.stream_name == 'disparity_color':
+                    frame = packet.getData()
+
+                    if len(frame.shape) == 2:
+                        if frame.dtype == np.uint8: # grayscale
+                            cv2.putText(frame, packet.stream_name, (25, 25), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255))
+                        else: # uint16
+                            frame = (65535 // frame).astype(np.uint8)
+                            #colorize depth map, comment out code below to obtain grayscale
+                            frame = cv2.applyColorMap(frame, cv2.COLORMAP_HOT)
+                            # frame = cv2.applyColorMap(frame, cv2.COLORMAP_JET)
+                            cv2.putText(frame, packet.stream_name, (25, 25), cv2.FONT_HERSHEY_SIMPLEX, 1.0, 255)
+                            
+                    else: # bgr
+                        cv2.putText(frame, packet.stream_name, (25, 25), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255))
+                    cv2.imshow('depth', frame)
+                    
     key = cv2.waitKey(1)
     if  key == ord('q'):
         break
