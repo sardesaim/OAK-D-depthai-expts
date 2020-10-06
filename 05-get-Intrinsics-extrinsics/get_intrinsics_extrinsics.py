@@ -7,13 +7,20 @@ import consts.resource_paths  # load paths to depthai resources
 from time import time
 
 device = depthai.Device('', False)
-print(device.get_left_homography())
-print(device.get_left_intrinsic())
-print(device.get_right_homography())
-print(device.get_right_intrinsic())
-print(device.get_rotation())
-print(device.get_translation())
-
+# print(device.get_left_homography())
+# print(device.get_left_intrinsic())
+# print(device.get_right_homography())
+# print(device.get_right_intrinsic())
+# print(device.get_rotation())
+# print(device.get_translation())
+lh=device.get_left_homography()
+rh=device.get_right_homography()
+li=device.get_left_intrinsic()
+ri=device.get_right_intrinsic()
+ro=device.get_rotation()
+t=device.get_translation()
+calib_data=np.vstack((lh,rh,li,ri,ro,t))
+print(calib_data)
 #if not depthai.init_device(consts.resource_paths.device_cmd_fpath):
 #   raise RuntimeError("Error initializing device. Try to reset it.")
 # Create the pipeline using the 'previewout' stream, establishing the first connection to the device.

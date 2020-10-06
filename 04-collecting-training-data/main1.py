@@ -18,6 +18,13 @@ parser.add_argument('-af', '--autofocus', type=str, default=None, help="Set Auto
 args = parser.parse_args()
 
 device = depthai.Device('', False)
+lh=device.get_left_homography()
+rh=device.get_right_homography()
+li=device.get_left_intrinsic()
+ri=device.get_right_intrinsic()
+ro=device.get_rotation()
+t=device.get_translation()
+calib_data=np.vstack((lh,rh,li,ri,ro,t))
 device.request_af_mode(getattr(depthai.AutofocusMode, args.autofocus, depthai.AutofocusMode.AF_MODE_AUTO))
 device.send_disparity_confidence_threshold(255)
 dest = Path(args.path).resolve().absolute()
@@ -25,7 +32,7 @@ if dest.exists() and len(list(dest.glob('*'))) != 0 and not args.dirty:
     raise ValueError(
         f"Path {dest} contains {len(list(dest.glob('*')))} files. Either specify new path or use \"--dirty\" flag to use current one")
 dest.mkdir(parents=True, exist_ok=True)
-
+np.savetxt(dest/Path('calib_data.txt'), calib_data, delimiter = ',')
 p = device.create_pipeline(config={
     "streams": ["left", "right", "color", "depth"],
     "ai": {
@@ -72,8 +79,7 @@ def extract_color_stream(item):
     bgr = cv2.cvtColor(yuv420p, cv2.COLOR_YUV2BGR_IYUV)
     bgr = cv2.resize(bgr, (w, h), interpolation=cv2.INTER_AREA)
     return bgr
-
-
+    
 extract_frame = {
     "left": lambda item: item.getData(),
     "right": lambda item: item.getData(),
@@ -94,14 +100,15 @@ def store_frames(frames_dict):
                 extract_frame[stream_name](frames_dict[stream_name])
             )
         )
-        for stream_name in frames_dict
+        for stream_name in frames_dict if stream_name!='depth'
     ]
+    depth_img=extract_frame['depth'](frames_dict['depth'])
     depth_procs = [
         Process(
             target=np.save,
             args=(
                 str(frames_path / Path("depth.npy")),
-                extract_frame['depth'](frames_dict['depth'])
+                depth_img
             )
         )
     ]
@@ -111,6 +118,19 @@ def store_frames(frames_dict):
     for proc in depth_procs:
         proc.start()
     procs += depth_procs
+    depth_img=(65535//depth_img).astype('uint8')
+    depth_img=cv2.applyColorMap(depth_img, cv2.COLORMAP_HOT)
+    depth_img_proc=[Process(
+            target=cv2.imwrite,
+            args=(
+                str(frames_path / Path('depth.png')),
+                depth_img
+            )
+        )
+    ]
+    for proc in depth_img_proc:
+        proc.start()
+    procs+=depth_img_proc
 
 class PairingSystem:
     seq_streams = ["left", "right", "depth"]
