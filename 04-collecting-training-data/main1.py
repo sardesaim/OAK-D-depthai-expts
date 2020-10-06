@@ -12,6 +12,7 @@ parser.add_argument('-t', '--threshold', default=0.03, type=float,
                     help="Maximum difference between packet timestamps to be considered as synced")
 parser.add_argument('-p', '--path', default="data", type=str, help="Path where to store the captured data")
 parser.add_argument('-d', '--dirty', action='store_true', default=False, help="Allow the destination path not to be empty")
+parser.add_argument('-np', '--numpy-save', default=False, help="Save depth as numpy array?")
 parser.add_argument('-nd', '--no-debug', dest="prod", action='store_true', default=False, help="Do not display debug output")
 parser.add_argument('-m', '--time', type=float, default=float("inf"), help="Finish execution after X seconds")
 parser.add_argument('-af', '--autofocus', type=str, default=None, help="Set AutoFocus mode of the RGB camera", choices=list(filter(lambda name: name.startswith("AF_"), vars(depthai.AutofocusMode))))
@@ -102,22 +103,23 @@ def store_frames(frames_dict):
         )
         for stream_name in frames_dict if stream_name!='depth'
     ]
-    depth_img=extract_frame['depth'](frames_dict['depth'])
-    depth_procs = [
-        Process(
-            target=np.save,
-            args=(
-                str(frames_path / Path("depth.npy")),
-                depth_img
-            )
-        )
-    ]
     for proc in new_procs:
         proc.start()
     procs += new_procs
-    for proc in depth_procs:
-        proc.start()
-    procs += depth_procs
+    depth_img=extract_frame['depth'](frames_dict['depth'])
+    if args.numpy_save=='True':
+        depth_procs = [
+            Process(
+                target=np.save,
+                args=(
+                    str(frames_path / Path("depth.npy")),
+                    depth_img
+                )
+            )
+        ]
+        for proc in depth_procs:
+            proc.start()
+        procs += depth_procs
     depth_img=(65535//depth_img).astype('uint8')
     depth_img=cv2.applyColorMap(depth_img, cv2.COLORMAP_HOT)
     depth_img_proc=[Process(
