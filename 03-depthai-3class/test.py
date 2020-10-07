@@ -1,40 +1,53 @@
+import argparse
 import numpy as np  # numpy - manipulate the packet data returned by depthai
 import cv2  # opencv - display the video stream
 import depthai  # access the camera and its data packets
+import os
+from pathlib import Path
 print('Using depthai module from: ', depthai.__file__, depthai.__version__)
 
 import consts.resource_paths  # load paths to depthai resources
 from time import time
 
+parser = argparse.ArgumentParser()
+parser.add_argument('-mp', '--model_path', default="/home/pi/OAK-D-depthai-expts/03-depthai-3class/3class_256.blob", type=str, help="Model path")
+parser.add_argument('-s', '--streams', default=['previewout', 'metaout'], type=list, help = "streams")
+args = parser.parse_args()
+
+blob_path = Path(args.model_path).resolve().absolute()
+print(str(blob_path))
+json_path = os.path.splitext(blob_path)[0]+".json"
+print(str(json_path))
 device = depthai.Device('', False)
 device.send_disparity_confidence_threshold(255)
-#if not depthai.init_device(consts.resource_paths.device_cmd_fpath):
-#   raise RuntimeError("Error initializing device. Try to reset it.")
-# Create the pipeline using the 'previewout' stream, establishing the first connection to the device.
+
+
+class RealWorldRecon:
+    def __init__(self):
+        self.scaling_factor=1
+        self.lh=device.get_left_homography()
+        self.rh=device.get_right_homography()
+        self.li=device.get_left_intrinsic()
+        self.ri=device.get_right_intrinsic()
+        self.ro=device.get_rotation()
+        self.t=device.get_translation()
+    def calculate_XYZ(self,u,v):                                          
+        #Solve: From Image Pixels, find World Points
+        uv_1=np.array([[u,v,1]], dtype=np.float16)
+        uv_1=uv_1.T
+        suv_1=self.scalingfactor*uv_1
+        xyz_c=self.inverse_newcam_mtx.dot(suv_1)
+        xyz_c=xyz_c-self.t
+        XYZ=self.inverse_R_mtx.dot(xyz_c)
+
+        return XYZ
+
 pipeline = device.create_pipeline(config={
-    'streams': ['previewout', 'metaout', 'depth'],
-    'depth':
-    {
-        'calibration_file': consts.resource_paths.calib_fpath,
-        'left_mesh_file': consts.resource_paths.left_mesh_fpath,
-        'right_mesh_file': consts.resource_paths.right_mesh_fpath,
-        'padding_factor': 0.3,
-        'depth_limit_m': 10.0, # In meters, for filtering purpose during x,y,z calc
-        'confidence_threshold' : 0.5, #Depth is calculated for bounding boxes with confidence higher than this number
-        'median_kernel_size': 7,
-        'lr_check': False,
-        'warp_rectify':
-        {
-            'use_mesh' : False, # if False, will use homography
-            'mirror_frame': True, # if False, the disparity will be mirrored instead
-            'edge_fill_color': 0, # gray 0..255, or -1 to replicate pixel values
-        },
-    },
+    'streams': args.streams,
     'ai': {
-#        "blob_file": "/home/pi/Downloads/3class_deeplabv3_256/deeplab_v3_plus_mnv3_decoder_256_3_class.blob",
-        "blob_file": "/home/pi/OAK-D-depthai-expts/03-depthai-3class/3class_256.blob",
-        #"blob_file_config": "/home/pi/Downloads/3class_deeplabv3_256/deeplab_v3_plus_mnv3_decoder_256_3_class.json",
-        "blob_file_config": "/home/pi/OAK-D-depthai-expts/03-depthai-3class/3class_256.json",
+        #"blob_file": "/home/pi/Downloads/3class_deeplabv3_256/deeplab_v3_plus_mnv3_decoder_256_3_class.blob",
+        "blob_file": str(blob_path),
+        "blob_file_config": str(json_path),
         'shaves' : 14,
         'cmx_slices' : 14,
         'NN_engines' : 2,

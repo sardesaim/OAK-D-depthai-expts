@@ -64,7 +64,7 @@ if __name__ == '__main__':
         # ret, color_image = cam.read()
         # if not ret:
         #     continue
-        color_image = cv2.imread('1color.png')
+        color_image = cv2.imread('bottle.JPG')
         color_image = cv2.resize(color_image, (camera_width, camera_height))
         # Normalization
         prepimg_deep = cv2.resize(color_image, (256, 256))
@@ -80,9 +80,9 @@ if __name__ == '__main__':
 
         # Get results
         print(deeplabv3_predictions.keys())
-        predictions = deeplabv3_predictions['Cast_2']
+#         predictions = deeplabv3_predictions['Cast_2']
+        predictions = deeplabv3_predictions['Output/Transpose']
         print(np.array(predictions).shape)
-        # predictions = deeplabv3_predictions['Output/Transpose']
         # import seaborn as sns
         # import matplotlib.pyplot as plt
         # sns.distplot(predictions[0].flatten())
@@ -90,7 +90,7 @@ if __name__ == '__main__':
 
         # Segmentation
         # outputimg = np.uint8(predictions[0][0])
-        outputimg = np.uint8(predictions[0])
+        outputimg = np.uint8(predictions[0][0])
         print(outputimg.shape)
         outputimg = cv2.resize(outputimg, (camera_width, camera_height))
         outputimg = Image.fromarray(outputimg, mode="P")
