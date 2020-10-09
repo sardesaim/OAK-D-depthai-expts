@@ -27,18 +27,21 @@ class RealWorldRecon:
         self.scaling_factor=1
         self.lh=device.get_left_homography()
         self.rh=device.get_right_homography()
-        self.li=device.get_left_intrinsic()
-        self.ri=device.get_right_intrinsic()
+        self.Al=device.get_left_intrinsic()
+        self.Ar=device.get_right_intrinsic()
         self.ro=device.get_rotation()
         self.t=device.get_translation()
+        
+        self.A_inv=np.linalg.inv(self.Al)
+        self.R_inv=np.linal.inv(self.ro)
     def calculate_XYZ(self,u,v):                                          
         #Solve: From Image Pixels, find World Points
         uv_1=np.array([[u,v,1]], dtype=np.float16)
         uv_1=uv_1.T
         suv_1=self.scalingfactor*uv_1
-        xyz_c=self.inverse_newcam_mtx.dot(suv_1)
+        xyz_c=self.A_inv.dot(suv_1)
         xyz_c=xyz_c-self.t
-        XYZ=self.inverse_R_mtx.dot(xyz_c)
+        XYZ=self.R_inv.dot(xyz_c)
 
         return XYZ
 
@@ -78,7 +81,9 @@ if pipeline is None:
     raise RuntimeError('Pipeline creation failed!')
 # The model deeplab_v3_plus_mnv3_decoder_256_sh4cmx4.blob returns a 256x256 of int32
 # Each int32 is either 0 (background) or 1 (person)
-class_colors = [[0,0,0], [255,0,0], [0,255,0], [0,0,255]]
+class_colors = [[0,0,0], [255,0,0], [0,255,0], [0,0,255], [0,128,128], [128,128,0], \
+                [128,0,128], [256,128,0], [256,0,128], [0,128,256], [256,238,0], [256,0,128], [0,128,64], [128,0,0], \
+                [0,256,64],[64,64,0],[0,64,256],[256,256,32],[32,32,256],[0,256,32],[32,32,32]]
 class_colors = np.asarray(class_colors, dtype=np.uint8)
 entries_prev = []
 output_colors = None
@@ -95,10 +100,11 @@ while True:
         raw = nnet_packet.get_tensor("out")        
         raw.dtype = np.int32
         outputs = nnet_packet.entries()[0]
-        print(len(raw))
-        print(len(outputs[0]))
+#         print(len(raw))
+#         print(len(outputs[0]))
         output = raw[:len(outputs[0])]
-        output = np.reshape(output, (256,256)) 
+        output = np.reshape(output, (256,256))
+        points=np.equal(output, np.ones(256)11)
         output_colors = np.take(class_colors, output, axis=0)
         # print(output_colors.shape)    
     for packet in data_packets:

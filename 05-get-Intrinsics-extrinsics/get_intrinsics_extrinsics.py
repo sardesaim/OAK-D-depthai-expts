@@ -6,72 +6,58 @@ print('Using depthai module from: ', depthai.__file__, depthai.__version__)
 import consts.resource_paths  # load paths to depthai resources
 from time import time
 
+
+class RealWorldRecon:
+    def __init__(self):
+        self.scalingfactor=1
+        self.lh=device.get_left_homography()
+        self.rh=device.get_right_homography()
+        self.Al=device.get_left_intrinsic()
+        self.Ar=device.get_right_intrinsic()
+        self.ro=device.get_rotation()
+        self.t=device.get_translation()
+        
+        self.A_inv=np.linalg.inv(self.Al)
+        self.R_inv=np.linalg.inv(self.ro)
+        
+        self.rwcs=np.zeros(1280,720,3)
+    def calculate_XYZ(self,u,v):                                          
+        #Solve: From Image Pixels, find World Points
+        uv_1=np.array([[u,v,1]], dtype=np.float16)
+        uv_1=uv_1.T
+        suv_1=self.scalingfactor*uv_1
+        xyz_c=self.A_inv.dot(suv_1)
+#         print(xyz_c.shape, np.array(self.t).shape)
+        xyz_c=xyz_c-np.array(self.t).reshape(-1,1)
+        
+        XYZ=self.R_inv.dot(xyz_c)
+        print(XYZ.shape)
+        print(np.matmul(np.linalg.inv(self.rh),suv_1))
+        return XYZ
+    
+    def save_rwc(self):
+        for i in range(1280):
+            for j in range(720):
+                rwc=self.calculate_XYZ(i,j)
+                self.rwcs[i,j,0]=rwc[0]
+                self.rwcs[i,j,1]=rwc[1]
+                self.rwcs[i,j,2]=rwc[2]
+                
+    
 device = depthai.Device('', False)
-# print(device.get_left_homography())
-# print(device.get_left_intrinsic())
-# print(device.get_right_homography())
-# print(device.get_right_intrinsic())
-# print(device.get_rotation())
-# print(device.get_translation())
-lh=device.get_left_homography()
-rh=device.get_right_homography()
-li=device.get_left_intrinsic()
-ri=device.get_right_intrinsic()
-ro=device.get_rotation()
-t=device.get_translation()
+
+rwc=RealWorldRecon()
+lh=rwc.lh
+rh=rwc.rh
+li=rwc.Al
+ri=rwc.Ar
+ro=rwc.ro
+t=rwc.t
+
 calib_data=np.vstack((lh,rh,li,ri,ro,t))
 print(calib_data)
-#if not depthai.init_device(consts.resource_paths.device_cmd_fpath):
-#   raise RuntimeError("Error initializing device. Try to reset it.")
-# Create the pipeline using the 'previewout' stream, establishing the first connection to the device.
-# pipeline = device.create_pipeline(config={
-#     'streams': ['previewout', 'metaout', 'depth'],
-#     'depth':
-#     {
-#         'calibration_file': consts.resource_paths.calib_fpath,
-#         'left_mesh_file': consts.resource_paths.left_mesh_fpath,
-#         'right_mesh_file': consts.resource_paths.right_mesh_fpath,
-#         'padding_factor': 0.3,
-#         'depth_limit_m': 10.0, # In meters, for filtering purpose during x,y,z calc
-#         'confidence_threshold' : 0.5, #Depth is calculated for bounding boxes with confidence higher than this number
-#         'median_kernel_size': 7,
-#         'lr_check': False,
-#         'warp_rectify':
-#         {
-#             'use_mesh' : False, # if False, will use homography
-#             'mirror_frame': True, # if False, the disparity will be mirrored instead
-#             'edge_fill_color': 0, # gray 0..255, or -1 to replicate pixel values
-#         },
-#     },
-#     'ai': {
-# #        "blob_file": "/home/pi/Downloads/3class_deeplabv3_256/deeplab_v3_plus_mnv3_decoder_256_3_class.blob",
-#         "blob_file": "/home/pi/OAK-D-depthai-expts/03-depthai-3class/3class_256.blob",
-#         #"blob_file_config": "/home/pi/Downloads/3class_deeplabv3_256/deeplab_v3_plus_mnv3_decoder_256_3_class.json",
-#         "blob_file_config": "/home/pi/OAK-D-depthai-expts/03-depthai-3class/3class_256.json",
-#         'shaves' : 14,
-#         'cmx_slices' : 14,
-#         'NN_engines' : 2,
-#     },
-#     'app':
-#     {
-#         'sync_video_meta_streams': True,
-#     },
-#     'camera':
-#     {
-#         'rgb':
-#         {
-#             # 3840x2160, 1920x1080
-#             # only UHD/1080p/30 fps supported for now
-#             'resolution_h': 1080,
-#             'fps': 30,
-#         },
-#         'mono':
-#         {
-#             # 1280x720, 1280x800, 640x400 (binning enabled)
-#             'resolution_h': 720,
-#             'fps': 30,
-#         },
-#     },
-# }
-# )
+print(rwc.calculate_XYZ(1,2))
+print(end='\n')
+print(rwc.calculate_XYZ(1280,720))
+
 
