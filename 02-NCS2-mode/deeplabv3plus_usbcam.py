@@ -22,10 +22,13 @@ DEEPLAB_PALETTE = Image.open("colorpalette.png").getpalette()
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--deep_model", default="openvino/256x256/FP16/deeplab_v3_plus_mnv3_decoder_256.xml", help="Path of the deeplabv3plus model.")
+    parser.add_argument("--deep_model", default="/home/pi/OAK-D-depthai-expts/02-NCS2-mode/FP16/3class_256/3class_256.xml", help="Path of the deeplabv3plus model.")
+    parser.add_argument("--input_path", default="image1.png")
     parser.add_argument("--usbcamno", type=int, default=0, help="USB Camera number.")
     parser.add_argument('--camera_width', type=int, default=640, help='USB Camera resolution (width). (Default=640)')
     parser.add_argument('--camera_height', type=int, default=480, help='USB Camera resolution (height). (Default=480)')
+    parser.add_argument('--input_width', type=int, default=256, help = 'Model input width')
+    parser.add_argument('--input_height', type=int, default=256, help = 'Model input height')
     parser.add_argument('--vidfps', type=int, default=30, help='FPS of Video. (Default=30)')
     parser.add_argument('--device', type=str, default='CPU', help='Specify the target device to infer on; CPU, GPU, FPGA or MYRIAD is acceptable. \
                                                                    Sample will look for a suitable plugin for device specified (CPU by default)')
@@ -36,7 +39,7 @@ if __name__ == '__main__':
     camera_height = args.camera_height
     vidfps        = args.vidfps
     device        = args.device
-
+#     print(args.model_size[0], args.model_size[1])
     model_xml = deep_model
     model_bin = os.path.splitext(model_xml)[0] + ".bin"
 
@@ -60,37 +63,37 @@ if __name__ == '__main__':
 
     while True:
         t1 = time.perf_counter()
-
         # ret, color_image = cam.read()
         # if not ret:
         #     continue
-        color_image = cv2.imread('bottle.JPG')
+        color_image = cv2.imread(args.input_path)
         color_image = cv2.resize(color_image, (camera_width, camera_height))
         # Normalization
-        prepimg_deep = cv2.resize(color_image, (256, 256))
+        prepimg_deep = cv2.resize(color_image, (args.input_width, args.input_height))
         prepimg_deep = cv2.cvtColor(prepimg_deep, cv2.COLOR_BGR2RGB)
         prepimg_deep = np.expand_dims(prepimg_deep, axis=0)
         prepimg_deep = prepimg_deep.astype(np.float32)
         prepimg_deep = np.transpose(prepimg_deep, [0, 3, 1, 2])
-        # prepimg_deep -= 127.5
-        # prepimg_deep /= 127.5
-
+#         prepimg_deep -= 127.5
+#         prepimg_deep /= 127.5
+        t11=time.perf_counter()
         # Run model - DeeplabV3-plus
         deeplabv3_predictions = exec_net.infer(inputs={input_blob: prepimg_deep})
-
+        t12=time.perf_counter()
+        print(t12-t11)
         # Get results
         print(deeplabv3_predictions.keys())
-#         predictions = deeplabv3_predictions['Cast_2']
-        predictions = deeplabv3_predictions['Output/Transpose']
+        predictions = deeplabv3_predictions['Cast_2']
+        
+#         predictions = deeplabv3_predictions['Output/Transpose']
         print(np.array(predictions).shape)
         # import seaborn as sns
         # import matplotlib.pyplot as plt
         # sns.distplot(predictions[0].flatten())
         # plt.show()
-
         # Segmentation
         # outputimg = np.uint8(predictions[0][0])
-        outputimg = np.uint8(predictions[0][0])
+        outputimg = np.uint8(predictions[0])
         print(outputimg.shape)
         outputimg = cv2.resize(outputimg, (camera_width, camera_height))
         outputimg = Image.fromarray(outputimg, mode="P")
@@ -98,6 +101,7 @@ if __name__ == '__main__':
         outputimg = outputimg.convert("RGB")
         outputimg = np.asarray(outputimg)
         outputimg = cv2.cvtColor(outputimg, cv2.COLOR_RGB2BGR)
+        cv2.imshow('seg', outputimg)
         imdraw = cv2.addWeighted(color_image, 1.0, outputimg, 0.9, 0)
 
         cv2.putText(imdraw, fps, (camera_width-170,15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (38,0,255), 1, cv2.LINE_AA)
@@ -113,6 +117,6 @@ if __name__ == '__main__':
             fps       = "(Playback) {:.1f} FPS".format(time1/10)
             framecount = 0
             time1 = 0
-        t2 = time.perf_counter()
-        elapsedTime = t2-t1
+        t3 = time.perf_counter()
+        elapsedTime = t3-t1
         time1 += 1/elapsedTime

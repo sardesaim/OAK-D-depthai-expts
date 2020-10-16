@@ -20,7 +20,7 @@ class RealWorldRecon:
         self.A_inv=np.linalg.inv(self.Al)
         self.R_inv=np.linalg.inv(self.ro)
         
-        self.rwcs=np.zeros(1280,720,3)
+        self.rwcs=np.zeros((1280,720,3))
     def calculate_XYZ(self,u,v):                                          
         #Solve: From Image Pixels, find World Points
         uv_1=np.array([[u,v,1]], dtype=np.float16)
@@ -42,9 +42,24 @@ class RealWorldRecon:
                 self.rwcs[i,j,0]=rwc[0]
                 self.rwcs[i,j,1]=rwc[1]
                 self.rwcs[i,j,2]=rwc[2]
-                
+
     
 device = depthai.Device('', False)
+p = device.create_pipeline(config={
+    "streams": ["previewout", "disparity_color"],
+    "ai": {
+        "blob_file": consts.resource_paths,
+        "blob_file_config": str(Path('./mobilenet-ssd/mobilenet-ssd.json').resolve().absolute())
+    },
+    'camera': {
+        'mono': {
+            'resolution_h': 720, 'fps': 30
+        },
+    },
+})
+
+if p is None:
+    raise RuntimeError("Error initializing pipelne")
 
 rwc=RealWorldRecon()
 lh=rwc.lh
@@ -60,4 +75,8 @@ print(rwc.calculate_XYZ(1,2))
 print(end='\n')
 print(rwc.calculate_XYZ(1280,720))
 
-
+# Q = np.float32([[1,0,0,0],
+#                 [0,-1,0,0],
+#                 [0,0,focal_length*0.05,0],
+#                 [0,0,0,1]])
+# points_3d = cv2.reprojectImageTo3D
