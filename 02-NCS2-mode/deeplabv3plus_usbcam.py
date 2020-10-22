@@ -22,15 +22,15 @@ DEEPLAB_PALETTE = Image.open("colorpalette.png").getpalette()
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--deep_model", default="/home/pi/OAK-D-depthai-expts/02-NCS2-mode/FP16/3class_256/3class_256.xml", help="Path of the deeplabv3plus model.")
+    parser.add_argument("--deep_model", default="/home/pi/OAK-D-depthai-expts/02-NCS2-mode/FP16/3class_360/3class_360.xml", help="Path of the deeplabv3plus model.")
     parser.add_argument("--input_path", default="image1.png")
     parser.add_argument("--usbcamno", type=int, default=0, help="USB Camera number.")
     parser.add_argument('--camera_width', type=int, default=640, help='USB Camera resolution (width). (Default=640)')
-    parser.add_argument('--camera_height', type=int, default=480, help='USB Camera resolution (height). (Default=480)')
-    parser.add_argument('--input_width', type=int, default=256, help = 'Model input width')
-    parser.add_argument('--input_height', type=int, default=256, help = 'Model input height')
+    parser.add_argument('--camera_height', type=int, default=360, help='USB Camera resolution (height). (Default=480)')
+    parser.add_argument('--input_width', type=int, default=640, help = 'Model input width')
+    parser.add_argument('--input_height', type=int, default=360, help = 'Model input height')
     parser.add_argument('--vidfps', type=int, default=30, help='FPS of Video. (Default=30)')
-    parser.add_argument('--device', type=str, default='CPU', help='Specify the target device to infer on; CPU, GPU, FPGA or MYRIAD is acceptable. \
+    parser.add_argument('--device', type=str, default='MYRIAD', help='Specify the target device to infer on; CPU, GPU, FPGA or MYRIAD is acceptable. \
                                                                    Sample will look for a suitable plugin for device specified (CPU by default)')
     args = parser.parse_args()
     deep_model    = args.deep_model

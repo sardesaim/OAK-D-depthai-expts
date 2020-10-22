@@ -12,7 +12,7 @@ import consts.resource_paths  # load paths to depthai resources
 from time import time
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-mp', '--model_path', default="/home/pi/OAK-D-depthai-expts/03-depthai-3class/3class_256.blob", type=str, help="Model path")
+parser.add_argument('-mp', '--model_path', default="/home/pi/OAK-D-depthai-expts/03-depthai-3class/3class/3class_256/3class_256.blob", type=str, help="Model path")
 parser.add_argument('-s', '--streams', default=['previewout', 'metaout'], type=list, help = "streams")
 args = parser.parse_args()
 
@@ -25,13 +25,14 @@ device = depthai.Device('', False)
 device.send_disparity_confidence_threshold(255)
 
 pipeline = device.create_pipeline(config={
-    'streams': ['previewout', 'metaout', 'depth'],
+#     'streams': ['previewout', 'metaout', 'depth'],
+    'streams': args.streams,
     'ai': {
         #"blob_file": "/home/pi/Downloads/3class_deeplabv3_256/deeplab_v3_plus_mnv3_decoder_256_3_class.blob",
         "blob_file": str(blob_path),
         "blob_file_config": str(json_path),
-        'shaves' : 14,
-        'cmx_slices' : 14,
+        'shaves' : 8,
+        'cmx_slices' : 8,
         'NN_engines' : 2,
     },
     'app':
@@ -66,8 +67,8 @@ while True:
 #         print(len(raw))
 #         print(len(outputs[0]))
         output = raw[:len(outputs[0])]
-        output = np.reshape(output, (256,256))
-        points=np.equal(output, np.ones(256))
+        output = np.reshape(output, (360,640))
+#         points=np.equal(output, np.ones(256))
 #         print(points.shape)
 #         hist,bins=np.histogram(output,bins=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19])
 #         print(hist)
